@@ -1,11 +1,13 @@
 var qs = require('querystring');
 
 function notAllowed(res) {
+    console.log('notAllowed ');
   res.writeHead(503);
   res.end();
 }
 
 function showError(res, err) {
+    console.log('showError ', err);
   res.writeHead(501);
   res.end(`<pre>${err.toString()}</pre>`);
 }
@@ -33,6 +35,7 @@ function readFormData(request, type, callback) {
 }
 
 module.exports = function handleRequest(req, res) {
+    console.log('handleRequest ', 111);
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
   res.setHeader('Access-Control-Allow-Methods', 'OPTIONS, GET, POST');
@@ -65,10 +68,28 @@ module.exports = function handleRequest(req, res) {
   }
 
   if (req.url == "/build") {
+      console.log("build call",req.url);
     if (req.method != "POST") return notAllowed(res);
     readFormData(req, "json", (err, input) => {
       if (err) return showError(res, err);
-      require('./build')(input, (err, result) => {
+      var  buildContext = require('./build');
+      buildContext.build(input, (err, result) => {
+        if (err) return showError(res, err);
+        res.setHeader('Content-type', 'application/json');
+        res.writeHead(200);
+        res.end(JSON.stringify(result));
+      });
+    });
+    return;
+  }
+
+  if (req.url == "/abi") {
+      console.log("abi call:",req.url);
+    if (req.method != "POST") return notAllowed(res);
+    readFormData(req, "json", (err, input) => {
+      if (err) return showError(res, err);
+        buildContext = require('./build');
+      buildContext.abi(input, (err, result) => {
         if (err) return showError(res, err);
         res.setHeader('Content-type', 'application/json');
         res.writeHead(200);

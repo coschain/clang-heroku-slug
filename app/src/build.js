@@ -1,7 +1,7 @@
 // Translated from https://github.com/wasdk/wasmexplorer-service/blob/master/web/build.php
 // FIXME make me node.js friendly and async
 
-const { llvmDir, tempDir, sysroot } = require("../config");
+const { abiGenDir, llvmDir, tempDir, sysroot } = require("../config");
 const { mkdirSync, writeFileSync, existsSync, openSync, closeSync, readFileSync, unlinkSync } = require("fs");
 const { deflateSync } = require("zlib");
 const { dirname } = require("path");
@@ -47,6 +47,7 @@ function sanitize_shell_output(out) {
 
 function shell_exec(cmd, cwd = tempDir) {
   const out = openSync(cwd + '/out.log', 'w');
+    console.log('shell_exec cmd:',cmd,' cwd:',cwd,' out:',out)
   let error = '';
   try {
     execSync(cmd, {cwd, stdio: [null, out, out],});
@@ -168,8 +169,7 @@ function build_project(project, base) {
   const build_result = { };
   const dir = base + '.$';
   const result = base + '.wasm';
-
-  const complete = (success, message) => {
+const complete = (success, message) => {
     shell_exec("rm -rf " + dir);
     if (existsSync(result)) {
       unlinkSync(result);
@@ -240,13 +240,122 @@ function build_project(project, base) {
   return complete(true, 'Success');
 }
 
-module.exports = (input, callback) => {
-  const baseName = tempDir + '/build_' + Math.random().toString(36).slice(2);
-  try {
-    console.log('Building in ', baseName);
-    const result = build_project(input, baseName);
-    callback(null, result);
-  } catch (ex) {
-    callback(ex);
+function gen_abi(project, base) {
+  const output = project.output;
+  const compress = project.compress;
+  const build_result = { };
+  const dir = base + '.$';
+  const result = base + '.abi';
+    // set return func
+const complete = (success, message) => {
+    shell_exec("rm -rf " + dir);
+    if (existsSync(result)) {
+      unlinkSync(result);
+    }
+  
+    build_result.success = success;
+    build_result.message = message;
+    return build_result;
+  };
+
+  if (output != 'abi') {
+    return complete(false, 'Invalid output type ' + output);
   }
-};
+
+  if (!existsSync(dir)) {
+    mkdirSync(dir);
+  }
+  build_result.tasks = [];
+  const files = project.files;
+    // write src into temp dir
+  for (let file of files) {
+    const name = file.name;
+    if (!validate_filename(name)) {
+      return complete(false, 'Invalid filename ' + name);
+    }
+    const fileName = dir + '/' + name;
+    const subdir = dirname(fileName);
+    if (!existsSync(subdir)) {
+      mkdirSync(dir);
+    }
+    const src = file.src;
+    writeFileSync(fileName, src);
+  }
+
+  //for (let file of files) {
+    if (files.length != 1) {
+      return complete(false, 'gen abi one file one time ' + files.length);
+    }
+    let file = files[0];
+    const name = file.name;
+    const fileName = dir + '/' + name;
+    const type = file.type;
+    if (type != 'hpp') {
+        return complete(false, 'Invalid input type ' + type);
+    }
+    let success = true;
+    const result_obj = {
+      name: `building ${name}`,
+      file: name
+    };
+    build_result.tasks.push(result_obj);
+    if (type == 'hpp') {
+      success = build_abi(fileName, fileName + '.abi', dir, compress, result_obj);
+    }
+    if (!success) {
+      return complete(false, 'Error during gen abi of ' + name);
+    }
+  //}
+  
+  build_result.output = result_obj.output;
+  return complete(true, 'Success');
+}
+
+function build_abi(input, output, cwd, compress, result_obj) {
+    console.log('c build input:',input);
+    // ./eosio-abigen -contract=hello hello.hpp --output=hello3.abi
+    let index_right = input.lastIndexOf('.');
+    let index_left = input.lastIndexOf('/');
+    if (index_right == -1 || index_left == -1) {
+    result_obj.success = false;
+    return false;
+    }
+    let contract_name = input.substring(index_left+1,index_right)
+    console.log('contract_name:',contract_name)
+  const cmd = abiGenDir + '/bin/eosio-abigen ' + ' -contract='+ contract_name + ' '  + input + ' -output=' + output;
+  const out = shell_exec(cmd, cwd);
+  result_obj.console = sanitize_shell_output(out);
+  if (!existsSync(output)) {
+    result_obj.success = false;
+    return false;
+  }
+  result_obj.success = true;
+    //output is just a file path
+  result_obj.output = serialize_file_data(output, compress);
+  return true;
+}
+
+var f1 = function(input, callback) {
+        console.log('<<< input >>> ',input)
+        const baseName = tempDir + '/build_' + Math.random().toString(36).slice(2);
+        try {
+            const result = build_project(input, baseName);
+            callback(null, result);
+        } catch (ex) {
+            callback(ex);
+        }
+    };
+
+    var f2 = function(input, callback) {
+        console.log('<<< abi input >>> ',input)
+        const baseName = tempDir + '/abi_' + Math.random().toString(36).slice(2);
+        try {
+            const result = gen_abi(input, baseName);
+            callback(null, result);
+        } catch (ex) {
+            callback(ex);
+        }
+    };
+
+exports.build = f1;
+exports.abi = f2;

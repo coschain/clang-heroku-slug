@@ -12,3 +12,6 @@ exports.llvmDir = onServer ?
   wasmceptionDir + '/dist';
 
 exports.tempDir = "/tmp";
+
+const abiDir = process.env["ABI_BUILD_DIR"];
+exports.abiGenDir = abiDir;
