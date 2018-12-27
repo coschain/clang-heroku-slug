@@ -331,7 +331,9 @@ function build_abi(input, output, cwd, compress, result_obj) {
   }
   result_obj.success = true;
     //output is just a file path
-  result_obj.output = serialize_file_data(output, compress);
+    
+  let content = readFileSync(output,"utf-8")
+  result_obj.output = content;//serialize_file_data(output, compress);
   return true;
 }
 
