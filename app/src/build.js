@@ -1,7 +1,7 @@
 // Translated from https://github.com/wasdk/wasmexplorer-service/blob/master/web/build.php
 // FIXME make me node.js friendly and async
 
-const { abiGenDir, llvmDir, tempDir, sysroot } = require("../config");
+const { coscc, llvmDir, tempDir, sysroot } = require("../config");
 const { mkdirSync, writeFileSync, existsSync, openSync, closeSync, readFileSync, unlinkSync } = require("fs");
 const { deflateSync } = require("zlib");
 const { dirname } = require("path");
@@ -312,24 +312,9 @@ const complete = (success, message) => {
 }
 
 function build_abi(input, output, cwd, compress, result_obj) {
-    console.log('c build input:',input);
-    // ./eosio-abigen -contract=hello hello.hpp --output=hello3.abi
-    let index = input.lastIndexOf('/');
-    if (index == -1) {
-        result_obj.success = false;
-        return false;
-    }
-    let context_folder = input.substring(0,index)
-  //const cmd = abiGenDir + '/bin/eosio-abigen ' + ' -contract='+ contract_name + ' '  + input + ' -output=' + output;
-    let option = ' -extra-arg=-c -extra-arg=--std=c++14 -extra-arg=--target=wasm32 -extra-arg=-nostdinc -extra-arg=-nostdinc++ -extra-arg=-fparse-all-comments -extra-arg=-DABIGEN -verbose=0 ';
-    let stdcpp_dir = ' -extra-arg=-I/Users/huoxin/code/src/github.com/coschain/wasm-compiler/contracts/libc++/upstream/include ';
-    let musl_dir = ' -extra-arg=-I/Users/huoxin/code/src/github.com/coschain/wasm-compiler/contracts//musl/upstream/include ';
-    let boost_dir = ' -extra-arg=-I/usr/local/include ';
-    let contract_dir = ' -extra-arg=-I/Users/huoxin/code/src/github.com/coschain/wasm-compiler/contracts/ ';
-    // how to deal context_dir, any folder is ok
-    //let context_dir = ' -context=/Users/huoxin/code/src/github.com/coschain/wasm-compiler/contracts/hello2 /Users/huoxin/code/src/github.com/coschain/wasm-compiler/contracts/hello2/hello.cpp ';
-    let context_dir = context_folder+' '+input;
-  const cmd = abiGenDir + '/xxxbuild/programs/cosio-abigen/Debug/cosio-abigen'+option+stdcpp_dir+musl_dir+boost_dir+contract_dir+' -context='+context_dir + ' -destination-file=' + output;
+    console.log('abi build input:',input);
+
+  const cmd = coscc + ' -g '+output +' '+ input;
   const out = shell_exec(cmd, cwd);
   result_obj.console = sanitize_shell_output(out);
   if (!existsSync(output)) {

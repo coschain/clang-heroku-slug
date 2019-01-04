@@ -13,5 +13,5 @@ exports.llvmDir = onServer ?
 
 exports.tempDir = "/tmp";
 
-const abiDir = process.env["ABI_BUILD_DIR"];
-exports.abiGenDir = abiDir;
+const coscc_Dir = process.env["COSCC"];
+exports.coscc = coscc_Dir ;
