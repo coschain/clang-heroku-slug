@@ -119,7 +119,7 @@ function build_c_file(input, options, output, cwd, compress, result_obj) {
 }
 
 function build_cpp_file(input, options, output, cwd, compress, result_obj) {
-  const cmd = llvmDir + '/bin/clang++ ' + get_clang_options(options) + ' ' + input + ' -o ' + output;
+    const cmd = coscc + ' -o ' + output + ' ' + input;
   const out = shell_exec(cmd, cwd);
   result_obj.console = sanitize_shell_output(out);
   if (!existsSync(output)) {
@@ -168,11 +168,11 @@ function build_project(project, base) {
   const compress = project.compress;
   const build_result = { };
   const dir = base + '.$';
-  const result = base + '.wasm';
+  const result_file = base + '.wasm';
 const complete = (success, message) => {
     shell_exec("rm -rf " + dir);
-    if (existsSync(result)) {
-      unlinkSync(result);
+    if (existsSync(result_file)) {
+      unlinkSync(result_file);
     }
   
     build_result.success = success;
@@ -188,8 +188,14 @@ const complete = (success, message) => {
     mkdirSync(dir);
   }
   build_result.tasks = [];
+
   const files = project.files;
-  for (let file of files) {
+    if (files.length != 1) {
+      return complete(false, 'gen wasm one file one time ' + files.length);
+    }
+
+    // write src to file
+      let file = files[0];
     const name = file.name;
     if (!validate_filename(name)) {
       return complete(false, 'Invalid filename ' + name);
@@ -201,12 +207,8 @@ const complete = (success, message) => {
     }
     const src = file.src;
     writeFileSync(fileName, src);
-  }
-  const obj_files = [];
-  let clang_cpp = false;
-  for (let file of files) {
-    const name = file.name;
-    const fileName = dir + '/' + name;
+
+    // build
     const type = file.type;
     const options = file.options;
     let success = true;
@@ -215,28 +217,15 @@ const complete = (success, message) => {
       file: name
     };
     build_result.tasks.push(result_obj);
-    if (type == 'c') {
-      success = build_c_file(fileName, options, fileName + '.o', dir, compress, result_obj);
-      obj_files.push(fileName + '.o');
-    } else if (type == 'cpp') {
-      clang_cpp = true;
-      success = build_cpp_file(fileName, options, fileName + '.o', dir, compress, result_obj);
-      obj_files.push(fileName + '.o');
-    }
+      if (type != 'cpp') {
+          return complete(false, 'Invalid src file type ' + type);
+      } 
+      success = build_cpp_file(fileName, options, fileName + '.wasm', dir, compress, result_obj);
     if (!success) {
       return complete(false, 'Error during build of ' + name);
     }
-  }
-  const link_options = project.link_options;
-  const link_result_obj = {
-    name: 'linking wasm'
-  };
-  build_result.tasks.push(link_result_obj);
-  if (!link_obj_files(obj_files, link_options, dir, clang_cpp, result, link_result_obj)) {
-    return complete(false, 'Error during linking');
-  }
-  
-  build_result.output = serialize_file_data(result, compress);
+    
+  build_result.output = result_obj.output;
   return complete(true, 'Success');
 }
 
@@ -290,7 +279,7 @@ const complete = (success, message) => {
     const name = file.name;
     const fileName = dir + '/' + name;
     const type = file.type;
-    if (type != 'hpp') {
+    if (type != 'cpp') {
         return complete(false, 'Invalid input type ' + type);
     }
     let success = true;
@@ -299,9 +288,7 @@ const complete = (success, message) => {
       file: name
     };
     build_result.tasks.push(result_obj);
-    if (type == 'hpp') {
-      success = build_abi(fileName, fileName + '.abi', dir, compress, result_obj);
-    }
+    success = build_abi(fileName, fileName + '.abi', dir, compress, result_obj);
     if (!success) {
       return complete(false, 'Error during gen abi of ' + name);
     }
