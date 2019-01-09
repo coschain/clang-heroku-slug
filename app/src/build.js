@@ -191,26 +191,31 @@ const complete = (success, message) => {
 
   const files = project.files;
     if (files.length != 1) {
-      return complete(false, 'gen wasm one file one time ' + files.length);
+      //return complete(false, 'gen wasm one file one time ' + files.length);
     }
 
     // write src to file
-      let file = files[0];
-    const name = file.name;
-    if (!validate_filename(name)) {
-      return complete(false, 'Invalid filename ' + name);
+    for(let file of files) {
+        const name = file.name;
+        if (!validate_filename(name)) {
+            return complete(false, 'Invalid filename ' + name);
+        }
+        const fileName = dir + '/' + name;
+        const subdir = dirname(fileName);
+        if (!existsSync(subdir)) {
+            mkdirSync(dir);
+        }
+        const src = file.src;
+        writeFileSync(fileName, src);
+        console.log("write file:",fileName)
     }
-    const fileName = dir + '/' + name;
-    const subdir = dirname(fileName);
-    if (!existsSync(subdir)) {
-      mkdirSync(dir);
-    }
-    const src = file.src;
-    writeFileSync(fileName, src);
 
-    // build
+    // build, first file is aim file
+    let file = files[0];
+    const name = file.name
     const type = file.type;
     const options = file.options;
+    const fileName = dir + '/' + name;
     let success = true;
     const result_obj = {
       name: `building ${name}`,
