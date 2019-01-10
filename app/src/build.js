@@ -278,7 +278,7 @@ const complete = (success, message) => {
 
   //for (let file of files) {
     if (files.length != 1) {
-      return complete(false, 'gen abi one file one time ' + files.length);
+      //return complete(false, 'gen abi one file one time ' + files.length);
     }
     let file = files[0];
     const name = file.name;
