@@ -118,8 +118,13 @@ function build_c_file(input, options, output, cwd, compress, result_obj) {
   return true;
 }
 
-function build_cpp_file(input, options, output, cwd, compress, result_obj) {
-    const cmd = coscc + ' -o ' + output + ' ' + input;
+function build_cpp_file(inputs, options, output, cwd, compress, result_obj) {
+
+    cmd = coscc + ' -o ' + output;
+    for (let file of inputs) {
+        cmd = cmd + ' ' + file
+    }
+
   const out = shell_exec(cmd, cwd);
   result_obj.console = sanitize_shell_output(out);
   if (!existsSync(output)) {
@@ -211,25 +216,28 @@ const complete = (success, message) => {
     }
 
     // build, first file is aim file
-    let file = files[0];
-    const name = file.name
-    const type = file.type;
-    const options = file.options;
-    const fileName = dir + '/' + name;
-    let success = true;
+    inputs = []
+    for (let file of files) {
+        const name = file.name
+        const type = file.type;
+        const fileName = dir + '/' + name;
+        
+        if (type == 'cpp') {
+            inputs.push(fileName)
+        } 
+    } 
     const result_obj = {
-      name: `building ${name}`,
-      file: name
+        name: `building ${files[0].name}`,
+        file: files[0].name
     };
     build_result.tasks.push(result_obj);
-      if (type != 'cpp') {
-          return complete(false, 'Invalid src file type ' + type);
-      } 
-      success = build_cpp_file(fileName, options, fileName + '.wasm', dir, compress, result_obj);
+    let success = true
+    const options = files[0].options;
+    success = build_cpp_file(inputs,options,inputs[0]+'.wasm',dir,compress,result_obj)
     if (!success) {
-      return complete(false, 'Error during build of ' + name);
+        return complete(false, 'Error during build of ' + files[0].name);
     }
-    
+
   build_result.output = result_obj.output;
   return complete(true, 'Success');
 }
