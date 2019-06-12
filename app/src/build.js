@@ -316,7 +316,8 @@ function build_abi(input, output, cwd, compress, result_obj) {
 
   const cmd = coscc + ' -g '+output +' '+ input;
   const out = shell_exec(cmd, cwd);
-  result_obj.console = sanitize_shell_output(out);
+    console.log('abi build output:',out);
+    result_obj.console = sanitize_shell_output(out);
   if (!existsSync(output)) {
     result_obj.success = false;
     return false;
